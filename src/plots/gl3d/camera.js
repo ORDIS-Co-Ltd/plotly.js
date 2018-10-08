@@ -184,8 +184,16 @@ function createCamera(element, options) {
     var lastX = 0, lastY = 0, lastMods = {shift: false, control: false, alt: false, meta: false};
     camera.mouseListener = mouseChange(element, handleInteraction);
 
+    
+    var scaling = false;
+    var scaleReset = false;
+    var oldDist = 0;
+
     // enable simple touch interactions
     element.addEventListener('touchstart', function(ev) {
+        if (event.touches.length === 2) {
+            scaling = true;
+        }
         var xy = mouseOffset(ev.changedTouches[0], element);
         handleInteraction(0, xy[0], xy[1], lastMods);
         handleInteraction(1, xy[0], xy[1], lastMods);
@@ -193,12 +201,44 @@ function createCamera(element, options) {
         ev.preventDefault();
     }, supportsPassive ? {passive: false} : false);
     element.addEventListener('touchmove', function(ev) {
+        if(scaling === true)
+        {
+            var dist = Math.hypot(
+            event.touches[0].pageX - event.touches[1].pageX,
+            event.touches[0].pageY - event.touches[1].pageY);
+            if(scaleReset === false)
+            {
+              scaleReset = true;
+              oldDist = dist;
+            }
+            else if (Math.abs(dist - oldDist) > 4)
+            {
+              var t = now();
+
+              if(dist - oldDist > 0)
+              {
+                var kzoom = -camera.zoomSpeed * 0.04 / window.innerHeight * (t - view.lastT()) * 100;
+                view.pan(t, 0, 0, distance * (Math.exp(kzoom) - 1));
+              }
+              else
+              {
+                var kzoom = -camera.zoomSpeed * (-0.04) / window.innerHeight * (t - view.lastT()) * 100;
+                view.pan(t, 0, 0, distance * (Math.exp(kzoom) - 1));
+             
+              }
+              oldDist = dist;
+            }
+            ev.preventDefault();
+            return;
+        }
         var xy = mouseOffset(ev.changedTouches[0], element);
         handleInteraction(1, xy[0], xy[1], lastMods);
 
         ev.preventDefault();
     }, supportsPassive ? {passive: false} : false);
     element.addEventListener('touchend', function(ev) {
+        scaleReset = false;
+        scaling = false;
         handleInteraction(0, lastX, lastY, lastMods);
 
         ev.preventDefault();
